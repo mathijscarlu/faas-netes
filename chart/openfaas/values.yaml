@@ -121,6 +121,10 @@ gateway:
   # "http://ofloki-openfaas-loki.openfaas:9191/"
   logsProviderURL: ""
 
+  # CHANGE in comparison to Openfaas repo
+  prometheus_host: "prometheus"
+  prometheus_port: 9090
+
   # Set to true for Istio users as a workaround for:
   # https://github.com/openfaas/faas/issues/1721
   probeFunctions: false
