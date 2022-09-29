@@ -138,7 +138,7 @@ spec:
         {{- end }}
         {{- end }}
         {{- if .Values.gateway.prometheus_host }}
-        - name: prometheus_host
+        - name: faas_prometheus_host
           value: "{{ .Values.gateway.prometheus_host }}"
         {{- end }}
         {{- if .Values.gateway.prometheus_port }}
