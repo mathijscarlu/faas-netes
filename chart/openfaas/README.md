@@ -19,7 +19,7 @@
 
 ## Deploy OpenFaaS
 
-### 1) Install with arkade
+### 1) Install Community Edition (CE) with arkade
 
 It is recommended that you use arkade to install OpenFaaS. arkade is a CLI tool which automates the helm CLI and chart download and installation. The `openfaas` app also has a number of options available via `arkade install openfaas --help`
 
@@ -38,8 +38,6 @@ If you wish to continue without using arkade, read on for instructions.
 
 ### 2) Install with helm
 
-These instructions are for Intel (normal computers), jump to the end of the document for ARM and Raspberry Pi.
-
 To use the chart, you will need to use Helm 3:
 
 Get it from arkade:
@@ -48,13 +46,15 @@ Get it from arkade:
 arkade get helm
 ```
 
-Or use the helm3 installer:
+Or use the Helm installation script:
 
 ```bash
 curl -sSLf https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 ```
 
-We recommend creating two namespaces, one for the OpenFaaS *core services* and one for the *functions*:
+We recommend creating two namespaces, one for the OpenFaaS *core services* and one for the *functions*.
+
+You can skip this step if you're using arkade to install OpenFaaS.
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml
@@ -70,26 +70,23 @@ helm repo add openfaas https://openfaas.github.io/faas-netes/
 
 Now decide how you want to expose the services and edit the `helm upgrade` command as required.
 
-* To use NodePorts (default) pass no additional flags
-* To use a LoadBalancer add `--set serviceType=LoadBalancer`
-* To use an IngressController add `--set ingress.enabled=true`
+* To use NodePorts/ClusterIP - (the default and best for development, with port-forwarding)
+* To use an IngressController add `--set ingress.enabled=true` (recommended for production, for use with TLS)
+* To use a LoadBalancer add `--set serviceType=LoadBalancer` (not recommended, since it will expose plain HTTP)
 
-> Note: even without a LoadBalancer or IngressController you can access your gateway at any time via `kubectl port-forward`.
+#### Deploy OpenFaaS Community Edition (CE)
 
-## Deploy OpenFaaS Community Edition
+> OpenFaaS Community Edition is meant exploration and development.
+> 
+> OpenFaaS Pro has been tuned for production use including flexible auto-scaling, high-available deployments, durability, add-on features, and more.
 
-> The Community Edition is meant for open source developers
-
-> OpenFaaS Pro customers should read on to the next section for production deployments.
-
-Now deploy OpenFaaS from the helm chart repo:
+Deploy CE from the helm chart repo directly:
 
 ```sh
 helm repo update \
- && helm upgrade openfaas --install openfaas/openfaas \
-    --namespace openfaas  \
-    --set functionNamespace=openfaas-fn \
-    --set generateBasicAuth=true
+ && helm upgrade openfaas \
+  --install openfaas/openfaas \
+  --namespace openfaas
 ```
 
 > The above command will also update your helm repo to pull in any new releases.
@@ -101,43 +98,57 @@ PASSWORD=$(kubectl -n openfaas get secret basic-auth -o jsonpath="{.data.basic-a
 echo "OpenFaaS admin password: $PASSWORD"
 ```
 
-## Deploy as an OpenFaaS Pro customer
+#### Deploy OpenFaaS Pro
 
-* Create the required secret with your [OpenFaaS Pro license](https://www.openfaas.com/support/):
+* Create the required secret with your [OpenFaaS Pro license](https://www.openfaas.com/pricing/):
 
 ```bash
 kubectl create secret generic \
-    -n openfaas \
-    openfaas-license \
-    --from-file license=$HOME/.openfaas/LICENSE
+  -n openfaas \
+  openfaas-license \
+  --from-file license=$HOME/.openfaas/LICENSE
 ```
+
+If you wish to use the OpenFaaS Pro dashboard, [you must run the steps to "Create a signing key"](https://docs.openfaas.com/openfaas-pro/dashboard/#installation) before installing the Helm chart.
 
 Now deploy OpenFaaS from the helm chart repo:
 
 ```sh
 helm repo update \
- && helm upgrade openfaas --install openfaas/openfaas \
-    --namespace openfaas  \
-    --set functionNamespace=openfaas-fn \
-    --set generateBasicAuth=true \
-    --set openfaasPro=true \
-    --set autoscaler.enabled=true
+ && helm upgrade openfaas \
+  --install openfaas/openfaas \
+  --namespace openfaas  \
+  --set openfaasPro=true
 ```
 
 The main change here is to add: `--set openfaasPro=true`
 
+For production, we recommend creating your own values.yaml file, but make sure you do not copy any more settings into it than strictly necessary. This way the file can be maintained easily over time.
+
+Example installation with a values.yaml file instead of using `--set`:
+
+```sh
+helm repo update \
+ && helm upgrade openfaas \
+  --install openfaas/openfaas \
+  --namespace openfaas  \
+  -f values.yaml \
+  -f values-pro.yaml
+```
+
 You can also review recommended Pro values in [values-pro.yaml](values-pro.yaml)
 
-### Installing OpenFaaS without Cluster Admin access
+#### Installing OpenFaaS Pro without Cluster Admin access
 
-In order to install OpenFaaS, you need to create at least one namespace, a Cluster Admin role and Custom Resource Definitions (CRDs), however some DevOps teams prevent business teams from getting access to Cluster Admin.
+In order to install OpenFaaS Pro, you need to create at least one namespace, a Cluster Admin role and Custom Resource Definitions (CRDs), however some DevOps teams prevent business teams from getting access to Cluster Admin.
 
 This option is reserved for OpenFaaS Pro customers, see the installation steps here: [Split installation instructions](https://github.com/openfaas/openfaas-pro/blob/master/split-installation.md)
 
 See also:
+
 * Scale-down to zero (in this document)
-* [OpenFaaS PRO SSO/OIDC](https://docs.openfaas.com/openfaas-pro/sso/)
-* [OpenFaaS PRO Kafka Event Connector](https://docs.openfaas.com/openfaas-pro/kafka-events/)
+* [OpenFaaS Pro SSO/OIDC](https://docs.openfaas.com/openfaas-pro/sso/)
+* [OpenFaaS Pro Kafka Event Connector](https://docs.openfaas.com/openfaas-pro/kafka-events/)
 
 ## Test changes for the helm chart
 
@@ -146,27 +157,27 @@ If you are working on a patch for the helm chart, you can deploy it directly fro
 You can run the following command from within the `faas-netes` folder, not the chart's folder.
 
 ```sh
-helm upgrade openfaas --install chart/openfaas \
-    --namespace openfaas \
-    --set functionNamespace=openfaas-fn \
-    --set generateBasicAuth=true \
-    -f ./chart/openfaas/values.yaml \
-    -f ./chart/openfaas/values-pro.yaml
+helm upgrade openfaas \
+  --install chart/openfaas \
+  --namespace openfaas \
+  -f ./chart/openfaas/values.yaml \
+  -f ./chart/openfaas/values-pro.yaml
 ```
 
 In the example above, I'm overlaying two additional YAML files for settings for the chart.
 
 You can override specific images by adding `--set gateway.image=` for instance.
 
-#### Generate basic-auth credentials
+#### Pre-create basic-auth credentials for OpenFaaS Pro/CE
 
-The chart has a pre-install hook which can generate basic-auth credentials, enable it with `--set generateBasicAuth=true`.
+If you're using a GitOps tool like ArgoCD or Flux to install OpenFaaS, then you will need to pre-create the basic-auth credentials, so that they remain stable.
 
-Alternatively, you can set `generateBasicAuth` to `false` and generate or supply the basic-auth credentials yourself. This is the option you may want if you are using `helm template`.
+Why? The chart has a pre-install hook which can generate basic-auth credentials. It is enabled by default and can be turned off with `--set generateBasicAuth=false`.
+
+Example command to generate a random password:
 
 ```sh
 # generate a random password
-PASSWORD=$(head -c 12 /dev/urandom | shasum| cut -d' ' -f1)
 kubectl -n openfaas create secret generic basic-auth \
 --from-literal=basic-auth-user=admin \
 --from-literal=basic-auth-password="$PASSWORD"
@@ -208,15 +219,6 @@ In addition:
 * Use an in-cluster registry to reduce the pull latency for images
 * Set the `imagePullPolicy` to `IfNotPresent` so that the `kubelet` only pulls images which are not already available
 * Explore alternatives such as not scaling to absolute zero, and using async calls which do not show the cold start
-
-#### httpProbe vs. execProbe
-
-A note on health-checking probes for functions:
-
-* httpProbe - (`default`) most efficient. (compatible with Istio >= 1.1.5)
-* execProbe - least efficient option, but compatible with Istio < 1.1.5
-
-Use `--set faasnetes.httpProbe=true/false` to toggle between http / exec probes.
 
 ### Verify the installation
 
@@ -344,23 +346,21 @@ If you use a service mesh like Linkerd or Istio in your cluster, then you should
 
 ### Istio mTLS
 
-To install OpenFaaS with Istio mTLS pass  `--set istio.mtls=true` and disable the HTTP probes:
+Istio requires OpenFaaS Pro to function correctly.
+
+To install OpenFaaS Pro with Istio mTLS pass `--set istio.mtls=true` and disable the HTTP probes:
 
 ```sh
 helm upgrade openfaas --install chart/openfaas \
     --namespace openfaas  \
-    --set basic_auth=true \
-    --set functionNamespace=openfaas-fn \
+    --set openfaasPro=true \
     --set exposeServices=false \
-    --set faasnetes.httpProbe=false \
-    --set httpProbe=false \
     --set gateway.directFunctions=true \
+    --set gateway.probeFunctions=true \
     --set istio.mtls=true
 ```
 
 The above command will enable mTLS for the openfaas control plane services and functions excluding NATS.
-
-> Note that the above instructions were tested on GKE 1.13 and Istio 1.2
 
 ## Zero scale
 
@@ -374,9 +374,9 @@ Scaling up from zero replicas is enabled by default, to turn it off set `scaleFr
 
 ### Scale-down to zero (off by default)
 
-Scaling down to zero replicas can be achieved either through the REST API and your own controller, or by using the faas-idler component. This is an OpenFaaS PRO feature and an effective way to save costs on your infrastructure costs.
+Scaling down to zero replicas can be achieved either through the REST API and your own controller, or by using the faas-idler component. This is an OpenFaaS Pro feature and an effective way to save costs on your infrastructure costs.
 
-OpenFaaS PRO will only scale down functions which have marked themselves as eligible for this behaviour through the use of a label: `com.openfaas.scale.zero=true`.
+OpenFaaS Pro will only scale down functions which have marked themselves as eligible for this behaviour through the use of a label: `com.openfaas.scale.zero=true`.
 
 See also: [Scale to Zero docs](https://docs.openfaas.com/openfaas-pro/scale-to-zero/).
 
@@ -402,12 +402,6 @@ kubectl delete namespace openfaas openfaas-fn
 
 In some cases your additional functions may need to be either deleted before deleting the chart with `faas-cli` or manually deleted using `kubectl delete`.
 
-## ARM and Raspberry Pi
-
-OpenFaaS container images are currently published as multi-arch for ARM64, armhf and `x64_64`. It's recommended that you use [arkade](https://get-arkade.dev) to install, or use the appropriate values.yaml file.
-
-See also: [Kubernetes and Raspberry Pi in the docs](https://docs.openfaas.com/deployment/kubernetes)
-
 ## Kubernetes versioning
 
 This Helm chart currently supports version 1.16+
@@ -421,6 +415,7 @@ Feel free to seek out help using the [OpenFaaS Slack workspace](https://slack.op
 ## Configuration
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`.
+
 See [values.yaml](./values.yaml) for detailed configuration.
 
 ### General parameters
@@ -428,8 +423,11 @@ See [values.yaml](./values.yaml) for detailed configuration.
 | Parameter               | Description                           | Default                                                    |
 | ----------------------- | ----------------------------------    | ---------------------------------------------------------- |
 | `affinity`| Global [affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) rules assigned to deployments | `{}` |
-| `async` | Enables asynchronous function invocations. If `.nats.external.enabled` is `false`, also deploys NATS Streaming | `true` |
+yaml) |
+| `async` | Enables asynchronous function invocations. If `.nats.external.enabled` is `false`, also deploys NATS | `true` |
+| `queueMode` | Set to `jetstream` to run the async system backed by NATS JetStream. By default the async system uses NATS Streaming|
 | `basic_auth` | Enable basic authentication on the gateway and Prometheus. Warning: do not disable. | `true` |
+| `generateBasicAuth` | Generate admin password for basic authentication | `true` |
 | `basicAuthPlugin.image` | Container image used for basic-auth-plugin | See [values.yaml](./values.yaml) |
 | `basicAuthPlugin.replicas` | Replicas of the basic-auth-plugin | `1` |
 | `basicAuthPlugin.resources` | Resource limits and requests for basic-auth-plugin containers | See [values.yaml](./values.yaml) |
@@ -438,7 +436,6 @@ See [values.yaml](./values.yaml) for detailed configuration.
 | `exposeServices` | Expose `NodePorts/LoadBalancer`  | `true` |
 | `functionNamespace` | Functions namespace, preferred `openfaas-fn` | `openfaas-fn` |
 | `gatewayExternal.annotations` | Annotation for getaway-external service | `{}` |
-| `generateBasicAuth` | Generate admin password for basic authentication | `false` |
 | `httpProbe` | Setting to true will use HTTP for readiness and liveness probe on the OpenFaaS system Pods (compatible with Istio >= 1.1.5) | `true` |
 | `ingress.enabled` | Create ingress resources | `false` |
 | `istio.mtls` | Create Istio policies and destination rules to enforce mTLS for OpenFaaS components and functions | `false` |
@@ -476,7 +473,7 @@ See [values.yaml](./values.yaml) for detailed configuration.
 
 | Parameter               | Description                           | Default                                                    |
 | ----------------------- | ----------------------------------    | ---------------------------------------------------------- |
-| `faasnetes.httpProbe` | Use a httpProbe instead of exec | `false` |
+| `faasnetes.httpProbe` | Use a httpProbe instead of exec | `true` |
 | `faasnetes.image` | Container image used for provider API | See [values.yaml](./values.yaml) |
 | `faasnetes.imagePullPolicy` | Image pull policy for deployed functions | `Always` |
 | `faasnetes.livenessProbe.initialDelaySeconds` | Number of seconds after the container has started before [probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) is initiated  | `2` |
@@ -500,7 +497,7 @@ See [values.yaml](./values.yaml) for detailed configuration.
 | Parameter               | Description                           | Default                                                    |
 | ----------------------- | ----------------------------------    | ---------------------------------------------------------- |
 | `autoscaler.disableHorizontalScaling` | Set to true, to only scale to zero, without scaling replicas between the defined Min and Max count for the function | `false` |
-| `autoscaler.enabled ` | Enable the autoscaler | `false` |
+| `autoscaler.enabled ` | Enable the autoscaler - if openfaasPro is set to true | `true` |
 | `autoscaler.image` | Container image used for the autoscaler | See [values.yaml](./values.yaml) |
 | `autoscaler.replicas` | Replicas of the autoscaler | `1` |
 | `autoscaler.resources` | Resource limits and requests for the autoscaler pods | See [values.yaml](./values.yaml) |
@@ -509,7 +506,11 @@ See [values.yaml](./values.yaml) for detailed configuration.
 
 | Parameter               | Description                           | Default                                                    |
 | ----------------------- | ----------------------------------    | ---------------------------------------------------------- |
-| `nats.channel` | The name of the NATS Streaming channel to use for asynchronous function invocations | `faas-request` |
+| `jetstreamQueueWorker.durableName` | Durable name used by JetStream consumers | `faas-workers` |
+| `jetstreamQueueWorker.image` | Container image used for the queue-worker when the `queueMode` is `jetstream` | See [values.yaml](./values.yaml) |
+| `jetstreamQueueWorker.logs.debug` | Log debug messages | `false` |
+| `jetstreamQueueWorker.logs.format` | Set the log format, supports `console` or `json` | `console` |
+| `nats.channel` | The name of the NATS Streaming channel or NATS JetStream stream to use for asynchronous function invocations | `faas-request` |
 | `nats.enableMonitoring` | Enable the NATS monitoring endpoints on port `8222` for NATS Streaming deployments managed by this chart | `false` |
 | `nats.external.clusterName` | The name of the externally-managed NATS Streaming server | `""` |
 | `nats.external.enabled` | Whether to use an externally-managed NATS Streaming server | `false` |
@@ -519,6 +520,7 @@ See [values.yaml](./values.yaml) for detailed configuration.
 | `nats.metrics.enabled` | Export Prometheus metrics for NATS, no multi-arch support  | `false` |
 | `nats.metrics.image` | Container image used for the NATS Prometheus exporter | See [values.yaml](./values.yaml) |
 | `nats.resources` | Resource limits and requests for the nats pods | See [values.yaml](./values.yaml) |
+| `nats.streamReplication` | JetStream stream replication factor. For production a value of at least 3 is recommended. | `1` |
 | `queueWorker.ackWait` | Max duration of any async task/request | `60s` |
 | `queueWorker.image` | Container image used for the CE edition of the queue-worker| See [values.yaml](./values.yaml) |
 | `queueWorker.maxInflight` | Control the concurrent invocations | `1` |
@@ -533,6 +535,7 @@ See [values.yaml](./values.yaml) for detailed configuration.
 | `queueWorkerPro.maxRetryWait` | Maximum amount of time to wait between retries | `120s` |
 | `queueWorkerPro.printResponseBody` | Print the function response body | `false` |
 | `queueWorkerPro.printRequestBody` | Print the request body| `false` |
+| `stan.image` | Container image used for NATS streaming server | See [values.yaml](./values.yaml) | 
 
 ### Dashboard (OpenFaaS Pro)
 

@@ -1,14 +1,12 @@
 package k8s
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 const testProfile = `
@@ -16,16 +14,6 @@ podSecurityContext:
     runAsUser: 1000
     runAsGroup: 3000
     fsGroup: 2000
-affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: kubernetes.io/e2e-az-name
-            operator: In
-            values:
-            - e2e-az1
-            - e2e-az2
 tolerations:
 - key: "key1"
   operator: "Equal"
@@ -169,7 +157,7 @@ func Test_TolerationsProfile_Apply(t *testing.T) {
 	}
 }
 
-func Test_RunTimeClassProfile_Apply(t *testing.T) {
+func Test_RunAsNonRootProfile_Apply(t *testing.T) {
 	expectedRoot := true
 	truev := true
 
@@ -240,145 +228,6 @@ func Test_TolerationsProfile_Remove(t *testing.T) {
 	}
 }
 
-func Test_AffinityProfile_Apply(t *testing.T) {
-	expectedAffinity := corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchFields: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "gpu",
-								Operator: apiv1.NodeSelectorOpExists,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	p := Profile{Affinity: &expectedAffinity}
-
-	basicDeployment := &appsv1.Deployment{
-		Spec: appsv1.DeploymentSpec{
-			Template: apiv1.PodTemplateSpec{
-				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
-						{Name: "testfunc", Image: "alpine:latest"},
-					},
-				},
-			},
-		},
-	}
-
-	factory := mockFactory()
-	factory.ApplyProfile(p, basicDeployment)
-	result := basicDeployment.Spec.Template.Spec.Affinity
-	if !reflect.DeepEqual(&expectedAffinity, result) {
-		t.Fatalf("expected %+v\n got %+v", &expectedAffinity, result)
-	}
-}
-
-func Test_AffinityProfile_Remove(t *testing.T) {
-	t.Run("removes matching affinity definition", func(t *testing.T) {
-		affinity := corev1.Affinity{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						{
-							MatchFields: []corev1.NodeSelectorRequirement{
-								{
-									Key:      "gpu",
-									Operator: apiv1.NodeSelectorOpExists,
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		p := Profile{Affinity: &affinity}
-
-		basicDeployment := &appsv1.Deployment{
-			Spec: appsv1.DeploymentSpec{
-				Template: apiv1.PodTemplateSpec{
-					Spec: apiv1.PodSpec{
-						Affinity: &affinity,
-						Containers: []apiv1.Container{
-							{Name: "testfunc", Image: "alpine:latest"},
-						},
-					},
-				},
-			},
-		}
-
-		factory := mockFactory()
-		factory.RemoveProfile(p, basicDeployment)
-		result := basicDeployment.Spec.Template.Spec.Affinity
-		if result != nil {
-			t.Fatalf("expected nil\n got %+v", result)
-		}
-	})
-
-	t.Run("does not remove non-matching affinity definition", func(t *testing.T) {
-		profileAffinity := corev1.Affinity{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						{
-							MatchFields: []corev1.NodeSelectorRequirement{
-								{
-									Key:      "gpu",
-									Operator: apiv1.NodeSelectorOpExists,
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		p := Profile{Affinity: &profileAffinity}
-
-		expectedAffinity := corev1.Affinity{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						{
-							MatchFields: []corev1.NodeSelectorRequirement{
-								{
-									Key:      "bigcpu",
-									Operator: apiv1.NodeSelectorOpExists,
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		basicDeployment := &appsv1.Deployment{
-			Spec: appsv1.DeploymentSpec{
-				Template: apiv1.PodTemplateSpec{
-					Spec: apiv1.PodSpec{
-						Affinity: &expectedAffinity,
-						Containers: []apiv1.Container{
-							{Name: "testfunc", Image: "alpine:latest"},
-						},
-					},
-				},
-			},
-		}
-
-		factory := mockFactory()
-		factory.RemoveProfile(p, basicDeployment)
-		result := basicDeployment.Spec.Template.Spec.Affinity
-
-		// the GPU affinity profile _should not_ remove the bigcpu affinity
-		if !reflect.DeepEqual(&expectedAffinity, result) {
-			t.Fatalf("expected %+v\n got %+v", &expectedAffinity, result)
-		}
-	})
-}
-
 func Test_PodSecurityProfile_Apply(t *testing.T) {
 	expectedProfile := apiv1.PodSecurityContext{
 		RunAsUser:  intp(1001),
@@ -436,112 +285,6 @@ func Test_PodSecurityProfile_Remove(t *testing.T) {
 	result := basicDeployment.Spec.Template.Spec.SecurityContext
 	if !reflect.DeepEqual(expectedProfile, result) {
 		t.Fatalf("expected %+v\n got %+v", &expectedProfile, result)
-	}
-}
-
-func Test_ConfigMapProfileParsing(t *testing.T) {
-	ctx := context.Background()
-	validConfig := corev1.ConfigMap{}
-	validConfig.Name = "allowSpot"
-	validConfig.Namespace = "functions"
-	validConfig.Data = map[string]string{"profile": testProfile}
-
-	allowSpot := Profile{
-		Tolerations: []apiv1.Toleration{
-			{
-				Key:               "key1",
-				Value:             "value1",
-				Operator:          apiv1.TolerationOpEqual,
-				Effect:            apiv1.TaintEffectNoExecute,
-				TolerationSeconds: nil,
-			},
-		},
-		PodSecurityContext: &apiv1.PodSecurityContext{
-			RunAsUser:  intp(1000),
-			RunAsGroup: intp(3000),
-			FSGroup:    intp(2000),
-		},
-		Affinity: &apiv1.Affinity{
-			NodeAffinity: &apiv1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &apiv1.NodeSelector{
-					NodeSelectorTerms: []apiv1.NodeSelectorTerm{
-						{
-							MatchExpressions: []apiv1.NodeSelectorRequirement{
-								{
-									Key:      "kubernetes.io/e2e-az-name",
-									Operator: apiv1.NodeSelectorOpIn,
-									Values:   []string{"e2e-az1", "e2e-az2"},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	invalidConfig := corev1.ConfigMap{}
-	invalidConfig.Name = "allowSpot"
-	invalidConfig.Namespace = "functions"
-	invalidConfig.Data = map[string]string{"profile": invalidProfileYAML}
-
-	cases := []struct {
-		name        string
-		namespace   string
-		profileName string
-		configmap   corev1.ConfigMap
-		expected    []Profile
-		err         string
-	}{
-		{
-			name:        "unknown profile returns error",
-			namespace:   "functions",
-			profileName: "unknown",
-			err:         `configmaps "unknown" not found`,
-		},
-		{
-			name:        "yaml profile parsed correctly",
-			namespace:   "functions",
-			profileName: "allowSpot",
-			configmap:   validConfig,
-			expected:    []Profile{allowSpot},
-		},
-		{
-			name:        "yaml parsing errors are returned",
-			namespace:   "functions",
-			profileName: "allowSpot",
-			configmap:   invalidConfig,
-			err:         `error converting YAML to JSON: yaml: line 7: could not find expected ':'`,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			factory := FunctionFactory{
-				Client: fake.NewSimpleClientset(&tc.configmap),
-			}
-			client := factory.NewConfigMapProfileClient()
-			got, err := client.Get(ctx, tc.namespace, tc.profileName)
-			if tc.err != "" {
-				if err == nil {
-					t.Fatalf("expected error %s, got nil", tc.err)
-				}
-
-				if tc.err != err.Error() {
-					t.Fatalf("expected error %s, got %s", tc.err, err.Error())
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("unexpected error %s", err.Error())
-			}
-
-			if !reflect.DeepEqual(tc.expected, got) {
-				t.Fatalf("\nwant %#v\n got %#v", tc.expected, got)
-			}
-
-		})
 	}
 }
 

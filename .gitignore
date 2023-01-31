@@ -26,3 +26,10 @@ of_kind_portforward.pid
 /yaml_arm64
 
 /broker-*
+
+/chart/pro-builder/out
+/chart/pro-builder/payload.txt
+/pgconnector.yaml
+
+jwt_key
+jwt_key.pub

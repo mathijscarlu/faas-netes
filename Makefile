@@ -85,7 +85,23 @@ verify-charts:
 	arkade chart verify --verbose=$(VERBOSE) -f ./chart/nats-connector/values.yaml && \
 	arkade chart verify --verbose=$(VERBOSE) -f ./chart/mqtt-connector/values.yaml && \
 	arkade chart verify --verbose=$(VERBOSE) -f ./chart/pro-builder/values.yaml && \
-	arkade chart verify --verbose=$(VERBOSE) -f ./chart/sqs-connector/values.yaml
+	arkade chart verify --verbose=$(VERBOSE) -f ./chart/sqs-connector/values.yaml && \
+	arkade chart verify --verbose=$(VERBOSE) -f ./chart/postgres-connector/values.yaml && \
+	arkade chart verify --verbose=$(VERBOSE) -f ./chart/queue-worker/values.yaml && \
+	arkade chart verify --verbose=$(VERBOSE) -f ./chart/sns-connector/values.yaml
+
+upgrade-charts:
+	@echo Upgrading helm charts images && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/openfaas/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/kafka-connector/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/cron-connector/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/nats-connector/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/mqtt-connector/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/pro-builder/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/sqs-connector/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/postgres-connector/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/queue-worker/values.yaml && \
+	arkade chart upgrade --verbose=$(VERBOSE) -w -f ./chart/sns-connector/values.yaml
 
 charts-only:
 	@cd chart && \
@@ -95,16 +111,16 @@ charts-only:
 		helm package nats-connector/ && \
 		helm package mqtt-connector/ && \
 		helm package pro-builder/ && \
-		helm package sqs-connector/
+		helm package sqs-connector/ && \
+		helm package postgres-connector/ && \
+		helm package queue-worker/ && \
+		helm package sns-connector/
 	mv chart/*.tgz docs/
 	helm repo index docs --url https://openfaas.github.io/faas-netes/ --merge ./docs/index.yaml
 	./contrib/create-static-manifest.sh
 
-
 render-charts:
 	./contrib/create-static-manifest.sh
-	./contrib/create-static-manifest.sh ./chart/openfaas ./yaml_arm64 ./chart/openfaas/values-arm64.yaml
-	./contrib/create-static-manifest.sh ./chart/openfaas ./yaml_armhf ./chart/openfaas/values-armhf.yaml
 
 start-kind: ## attempt to start a new dev environment
 	@./contrib/create_dev.sh

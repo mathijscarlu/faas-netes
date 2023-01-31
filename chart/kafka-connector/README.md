@@ -1,4 +1,4 @@
-# OpenFaaS PRO Kafka Connector
+# OpenFaaS Pro Kafka Connector
 
 The [Kafka connector](https://docs.openfaas.com/openfaas-pro/introduction) brings Kafka to OpenFaaS by invoking functions based on Kafka topic annotations.
 
@@ -6,11 +6,11 @@ The [Kafka connector](https://docs.openfaas.com/openfaas-pro/introduction) bring
 
 ## Prerequisites
 
-- Obtain a license or trial
+- Purchase a license
 
-  You will need an OpenFaaS Premium subscription to access PRO features.
+  You will need an OpenFaaS License
 
-  Contact us to find out more and to start a free trial at: [openfaas.com/support](https://www.openfaas.com/support)
+  Contact us to find out more [openfaas.com/pricing](https://www.openfaas.com/pricing)
 
 - Install OpenFaaS
 
@@ -24,13 +24,15 @@ The [Kafka connector](https://docs.openfaas.com/openfaas-pro/introduction) bring
 
   [Aiven](https://aiven.io/) and [Confluent Cloud](https://confluent.cloud/) have both been tested with the Kafka Connector.
 
+Other versions of Kafka like Redpanda should work out of the box.
+
 ## Complete walk-through guide
 
   You can continue with this guide, or start the [walk-through](quickstart.md) for testing purposes.
 
 ## Install the Chart
 
-- Create the required secret with your OpenFaaS PRO license code:
+- Create the required secret with your OpenFaaS Pro license code:
 
 ```bash
 $ kubectl create secret generic \
@@ -39,7 +41,7 @@ $ kubectl create secret generic \
     --from-file license=$HOME/.openfaas/LICENSE
 ```
 
-- Add the OpenFaaS chart repo and deploy the `kafka-connector` PRO chart. We recommend installing it in the same namespace as the rest of OpenFaaS
+- Add the OpenFaaS chart repo and deploy the `kafka-connector` Pro chart. We recommend installing it in the same namespace as the rest of OpenFaaS
 
 ```sh
 $ helm repo add openfaas https://openfaas.github.io/faas-netes/
@@ -51,6 +53,7 @@ $ helm upgrade kafka-connector openfaas/kafka-connector \
 > The above command will also update your helm repo to pull in any new releases.
 
 ## Install a development version
+
 ```sh
 $ helm upgrade kafka-connector ./chart/kafka-connector \
     --install \
@@ -72,29 +75,31 @@ $ helm upgrade kafka-connector ./chart/kafka-connector \
 
 Additional kafka-connector options in `values.yaml`.
 
-| Parameter                | Description                                                                            | Default                        |
-| ------------------------ | -------------------------------------------------------------------------------------- | ------------------------------ |
-| `topics`                 | Topics to which the connector will bind, provide as a comma-separated list.            | `faas-request`                 |
-| `brokerHost`             | location of the Kafka brokers.                                                         | `kafka`                        |
-| `asyncInvocation`        | For long running or slow functions, offload to asychronous function invocations and carry on processing the stream | `false`   |
-| `upstreamTimeout`        | Maximum timeout for upstream function call, must be a Go formatted duration string.    | `2m`                          |
-| `rebuildInterval`        | Interval for rebuilding function to topic map, must be a Go formatted duration string. | `30s`                           |
-| `gatewayURL`             | The URL for the API gateway.                                                           | `http://gateway.openfaas:8080` |
-| `printResponse`          | Output the response of calling a function in the logs.                                 | `true`                         |
-| `printResponseBody`      | Output to the logs the response body when calling a function.                          | `false`                        |
-| `printRequestBody`       | Output to the logs the request body when calling a function.                           | `false`                        |
-| `fullnameOverride`       | Override the name value used for the Connector Deployment object.                      | ``                             |
-| `sasl`                   | Enable auth with a SASL username/password                                              | `false`                        |
-| `brokerPasswordSecret`   | Name of secret for SASL password                                                       | `kafka-broker-password`        |
-| `brokerUsernameSecret`   | Name of secret for SASL username                                                       | `kafka-broker-username`        |
-| `caSecret`               | Name secret for TLS CA - leave empty to disable                                        | `kafka-broker-ca`              |
-| `certSecret`             | Name secret for TLS client certificate cert - leave empty to disable                   | `kafka-broker-cert`            |
-| `keySecret`              | Name secret for TLS client certificate private key - leave empty to disable            | `kafka-broker-key`             |
-| `contentType`            | Set a HTTP Content Type during function invocation.                                    | `""`                           |
-| `group`                  | Set the Kafka consumer group name.                                                     | `""`                           |
-| `maxBytes`               | Set the maximum size of messages from the Kafka broker.                                | `1024*1024`                    |
-| `sessionLogging`         | Enable detailed logging from the consumer group.                                       | `"false"`                      |
-| `initialOffset`          | Either newest or oldest.                                                               | `"oldest"`                     |
+| Parameter              | Description                                                                                                        | Default                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| `topics`               | Topics to which the connector will bind, provide as a comma-separated list or a single item.                       | `faas-request`                 |
+| `brokerHost`           | location of the Kafka brokers.                                                                                     | `kafka`                        |
+| `asyncInvocation`      | For long running or slow functions, offload to asychronous function invocations and carry on processing the stream | `false`                        |
+| `upstreamTimeout`      | Maximum timeout for upstream function call, must be a Go formatted duration string.                                | `2m`                           |
+| `rebuildInterval`      | Interval for rebuilding function to topic map, must be a Go formatted duration string.                             | `30s`                          |
+| `gatewayURL`           | The URL for the API gateway.                                                                                       | `http://gateway.openfaas:8080` |
+| `printResponse`        | Output the response of calling a function in the logs.                                                             | `true`                         |
+| `printResponseBody`    | Output to the logs the response body when calling a function.                                                      | `false`                        |
+| `printRequestBody`     | Output to the logs the request body when calling a function.                                                       | `false`                        |
+| `fullnameOverride`     | Override the name value used for the Connector Deployment object.                                                  | ``                             |
+| `sasl`                 | Enable auth with a SASL username/password                                                                          | `false`                        |
+| `brokerPasswordSecret` | Name of secret for SASL password                                                                                   | `kafka-broker-password`        |
+| `brokerUsernameSecret` | Name of secret for SASL username                                                                                   | `kafka-broker-username`        |
+| `caSecret`             | Name secret for TLS CA - leave empty to disable                                                                    | `kafka-broker-ca`              |
+| `certSecret`           | Name secret for TLS client certificate cert - leave empty to disable                                               | `kafka-broker-cert`            |
+| `keySecret`            | Name secret for TLS client certificate private key - leave empty to disable                                        | `kafka-broker-key`             |
+| `contentType`          | Set a HTTP Content Type during function invocation.                                                                | `""`                           |
+| `group`                | Set the Kafka consumer group name.                                                                                 | `""`                           |
+| `maxBytes`             | Set the maximum size of messages from the Kafka broker.                                                            | `1024*1024`                    |
+| `sessionLogging`       | Enable detailed logging from the consumer group.                                                                   | `"false"`                      |
+| `initialOffset`        | Either newest or oldest.                                                                                           | `"oldest"`                     |
+| `logs.debug`           | Print debug logs                                                                                                   | `false`                        |
+| `logs.format`          | The log encoding format. Supported values: `json` or `console`                                                     | `console`                      |
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. See `values.yaml` for the default configuration.
 

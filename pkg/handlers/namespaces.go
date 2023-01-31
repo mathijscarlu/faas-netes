@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,20 +20,14 @@ import (
 )
 
 // MakeNamespacesLister builds a list of namespaces with an "openfaas" tag, or the default name
-func MakeNamespacesLister(defaultNamespace string, clusterRole bool, clientset kubernetes.Interface) http.HandlerFunc {
+func MakeNamespacesLister(defaultNamespace string, clientset kubernetes.Interface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// log.Println("List namespaces")
 
 		if r.Body != nil {
 			defer r.Body.Close()
 		}
 
-		namespaces := []string{}
-		if clusterRole {
-			namespaces = ListNamespaces(defaultNamespace, clientset)
-		} else {
-			namespaces = append(namespaces, defaultNamespace)
-		}
+		namespaces := []string{defaultNamespace}
 
 		out, err := json.Marshal(namespaces)
 		if err != nil {
@@ -66,25 +61,31 @@ func NewNamespaceResolver(defaultNamespace string, kube kubernetes.Interface) Na
 				req.Namespace = namespace
 			}
 
+			if req.Namespace != defaultNamespace {
+				return "", fmt.Errorf("namespace %s is not allowed", req.Namespace)
+			}
+
 		case http.MethodPost, http.MethodPut, http.MethodDelete:
-			body, _ := ioutil.ReadAll(r.Body)
+			body, _ := io.ReadAll(r.Body)
 			err := json.Unmarshal(body, &req)
 			if err != nil {
 				log.Printf("error while getting namespace: %s\n", err)
 				return "", fmt.Errorf("unable to unmarshal json request")
 			}
 
+			if req.Namespace != defaultNamespace {
+				return "", fmt.Errorf("namespace %s is not allowed", req.Namespace)
+			}
+
 			// Reconstruct Body
 			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 		}
 
-		allowedNamespaces := ListNamespaces(defaultNamespace, kube)
-		ok := findNamespace(req.Namespace, allowedNamespaces)
-		if !ok {
-			return req.Namespace, fmt.Errorf("unable to manage secrets within the %s namespace", req.Namespace)
+		if req.Namespace != defaultNamespace {
+			return "", fmt.Errorf("unable to manage secrets within the %s namespace", req.Namespace)
 		}
 
-		return req.Namespace, nil
+		return defaultNamespace, nil
 	}
 }
 

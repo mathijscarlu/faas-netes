@@ -33,7 +33,7 @@ spec:
             requests:
               cpu: 50m
               memory: 120Mi
-        image: ghcr.io/openfaas/gateway:0.25.1
+        image: ghcr.io/openfaas/gateway:0.26.2
         imagePullPolicy: Always
         command:
           - ./gateway
@@ -41,15 +41,23 @@ spec:
           readOnlyRootFilesystem: true
           runAsUser: 10001
         livenessProbe:
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
           httpGet:
             path: /healthz
             port: 8080
-          timeoutSeconds: 5
         readinessProbe:
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
           httpGet:
             path: /healthz
             port: 8080
-          timeoutSeconds: 5
         env:
         - name: read_timeout
           value: "65s"
@@ -75,16 +83,14 @@ spec:
           value: "true"
         - name: secret_mount_path
           value: "/var/secrets"
-        - name: auth_proxy_url
-          value: "http://basic-auth-plugin.openfaas:8080/validate"
-        - name: auth_pass_body
-          value: "false"
         - name: scale_from_zero
           value: "true"
         - name: max_idle_conns
           value: "1024"
         - name: max_idle_conns_per_host
           value: "1024"
+        - name: probe_functions
+          value: "false"
         volumeMounts:
         - name: auth
           readOnly: true
@@ -98,7 +104,7 @@ spec:
             requests:
               cpu: 50m
               memory: 120Mi
-        image: ghcr.io/openfaas/faas-netes:0.15.2
+        image: ghcr.io/openfaas/faas-netes:0.16.3
         imagePullPolicy: Always
         securityContext:
           readOnlyRootFilesystem: true

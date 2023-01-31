@@ -8,7 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/openfaas/faas-provider/types"
@@ -37,7 +37,12 @@ func MakeDeleteHandler(defaultNamespace string, clientset *kubernetes.Clientset)
 			return
 		}
 
-		body, _ := ioutil.ReadAll(r.Body)
+		if lookupNamespace != defaultNamespace {
+			http.Error(w, fmt.Sprintf("valid namespaces are: %s", defaultNamespace), http.StatusBadRequest)
+			return
+		}
+
+		body, _ := io.ReadAll(r.Body)
 
 		request := types.DeleteFunctionRequest{}
 		err := json.Unmarshal(body, &request)
@@ -82,7 +87,6 @@ func MakeDeleteHandler(defaultNamespace string, clientset *kubernetes.Clientset)
 		}
 
 		w.WriteHeader(http.StatusAccepted)
-		return
 	}
 }
 

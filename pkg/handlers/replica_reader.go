@@ -19,6 +19,9 @@ import (
 	glog "k8s.io/klog"
 )
 
+// MaxReplicas licensed for OpenFaaS CE is 5/5
+const MaxReplicas = 5
+
 // MakeReplicaReader reads the amount of replicas for a deployment
 func MakeReplicaReader(defaultNamespace string, lister v1.DeploymentLister) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +36,11 @@ func MakeReplicaReader(defaultNamespace string, lister v1.DeploymentLister) http
 
 		if len(namespace) > 0 {
 			lookupNamespace = namespace
+		}
+
+		if lookupNamespace != defaultNamespace {
+			http.Error(w, fmt.Sprintf("valid namespaces are: %s", defaultNamespace), http.StatusBadRequest)
+			return
 		}
 
 		s := time.Now()
